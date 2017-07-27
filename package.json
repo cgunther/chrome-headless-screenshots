@@ -3,6 +3,9 @@
   "version": "1.1.0",
   "description": "",
   "main": "index.js",
+  "bin": {
+    "chrome-headless-screenshots": "bin/chrome-headless-screenshots.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
