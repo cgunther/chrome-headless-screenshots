@@ -2,6 +2,7 @@ const CDP = require('chrome-remote-interface');
 const argv = require('minimist')(process.argv.slice(2));
 const file = require('mz/fs');
 const timeout = require('delay');
+const chromeLauncher = require('chrome-launcher');
 
 // CLI Args
 const url = argv.url || 'https://www.google.com';
@@ -13,16 +14,28 @@ const userAgent = argv.userAgent;
 const fullPage = argv.full;
 const output = argv.output || `output.${format === 'png' ? 'png' : 'jpg'}`;
 
-init();
+async function launchChrome(headless = true) {
+  return await chromeLauncher.launch({
+    chromeFlags: [
+      '--disable-gpu',
+      '--hide-scrollbars',
+      headless ? '--headless' : ''
+    ]
+  });
+}
 
-async function init() {
+launchChrome(true).then(chrome_proc => {
+  init(chrome_proc);
+});
+
+async function init(chrome_proc) {
   let client;
   try {
     // Start the Chrome Debugging Protocol
-    client = await CDP();
+    client = await CDP({'port': chrome_proc["port"]});
 
     // Verify version
-    const { Browser } = await CDP.Version();
+    const { Browser } = await CDP.Version({'port': chrome_proc["port"]});
     const browserVersion = Browser.match(/\/(\d+)/)[1];
     if (Number(browserVersion) !== 60) {
       console.warn(`This script requires Chrome 60, however you are using version ${browserVersion}. The script is not guaranteed to work and you may need to modify it.`);
@@ -93,9 +106,13 @@ async function init() {
     await file.writeFile(output, buffer, 'base64');
     console.log('Screenshot saved');
     client.close();
+    chrome_proc.kill();
   } catch (err) {
     if (client) {
       client.close();
+    }
+    if (chrome_proc) {
+      chrome_proc.kill();
     }
     console.error('Exception while taking screenshot:', err);
     process.exit(1);
